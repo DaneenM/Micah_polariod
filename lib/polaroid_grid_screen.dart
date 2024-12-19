@@ -6,37 +6,32 @@ class PolaroidGridScreen extends StatelessWidget {
     {
       'image': 'assets/images/january.jpg',
       'caption': 'January',
-      'video': 'assets/videos/january.mp4'
+      'video': 'assets/videos/january.mp4',
     },
     {
       'image': 'assets/images/february.jpg',
       'caption': 'February',
-      'video': 'assets/videos/february.mp4'
+      'video': 'assets/videos/february.mp4',
     },
     {
       'images': [
         'assets/images/march1.png',
         'assets/images/march2.png',
         'assets/images/march3.png',
-        'assets/videos/march.mp4'
+        'assets/videos/march.mp4',
       ],
       'caption': 'March',
-      'messages': [
-        'Message 1: A day to remember!',
-        'Message 2: We laughed so much here!',
-        'Message 3: I’ll never forget this day ❤️',
-      ],
-      'video': ''
+      'video': '',
     },
     {
       'image': 'assets/images/april.jpg',
       'caption': 'April',
-      'video': 'assets/videos/april.mp4'
+      'video': 'assets/videos/april.mp4',
     },
     {
       'image': 'assets/images/may.jpg',
       'caption': 'May',
-      'video': 'assets/videos/may.mp4'
+      'video': 'assets/videos/may.mp4',
     },
     // Placeholder data for the rest of the months
     ...List.generate(7, (index) {
@@ -47,7 +42,7 @@ class PolaroidGridScreen extends StatelessWidget {
         'September',
         'October',
         'November',
-        'December'
+        'December',
       ];
       return {
         'image': 'assets/images/placeholder.jpg', // Placeholder image
@@ -86,8 +81,8 @@ class PolaroidGridScreen extends StatelessWidget {
             imagePath: item['image'] ?? '',
             caption: item['caption'] ?? '',
             videoPath: item['video'] ?? '',
-            messages: item['messages'] as List<String>?,
-            images: item['images'] as List<String>?,
+            images:
+                item['images'] as List<String>?, // Keep only valid parameters
           );
         },
       ),
