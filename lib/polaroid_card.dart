@@ -23,7 +23,6 @@ class PolaroidCard extends StatefulWidget {
 
 class _PolaroidCardState extends State<PolaroidCard> {
   late VideoPlayerController _videoController;
-  int _currentMessageIndex = 0; // Track the current sliding message
 
   @override
   void initState() {
@@ -36,21 +35,6 @@ class _PolaroidCardState extends State<PolaroidCard> {
           debugPrint('Video player initialization error: $e');
         });
     }
-
-    // Start sliding text if messages are provided
-    if (widget.messages != null && widget.messages!.isNotEmpty) {
-      Future.delayed(const Duration(seconds: 2), _slideMessages);
-    }
-  }
-
-  void _slideMessages() {
-    if (widget.messages != null && widget.messages!.isNotEmpty) {
-      setState(() {
-        _currentMessageIndex =
-            (_currentMessageIndex + 1) % widget.messages!.length;
-      });
-      Future.delayed(const Duration(seconds: 2), _slideMessages);
-    }
   }
 
   @override
@@ -61,95 +45,69 @@ class _PolaroidCardState extends State<PolaroidCard> {
     super.dispose();
   }
 
+  void _openFullScreen(BuildContext context) {
+    if (widget.videoPath.isNotEmpty) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => FullScreenVideo(videoPath: widget.videoPath),
+        ),
+      );
+    } else if (widget.imagePath.isNotEmpty) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => FullScreenImage(imagePath: widget.imagePath),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () {
-        if (widget.images != null && widget.images!.isNotEmpty) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) =>
-                  ImageSlideshowScreen(images: widget.images!),
-            ),
-          );
-        } else if (widget.videoPath.isNotEmpty) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => VideoScreen(videoPath: widget.videoPath),
-            ),
-          );
-        }
-      },
-      child: Stack(
-        alignment: Alignment.bottomCenter,
+      onTap: () => _openFullScreen(context),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                child: widget.images != null && widget.images!.isNotEmpty
-                    ? PageView.builder(
-                        itemCount: widget.images!.length,
-                        itemBuilder: (context, index) {
-                          final isVideo =
-                              widget.images![index].endsWith('.mp4');
-                          return isVideo
-                              ? VideoPlayerWidget(
-                                  videoPath: widget.images![index])
-                              : Image.asset(
-                                  widget.images![index],
-                                  fit: BoxFit.cover,
-                                );
-                        },
-                      )
-                    : widget.videoPath.isNotEmpty
-                        ? Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              AspectRatio(
-                                aspectRatio: _videoController.value.aspectRatio,
-                                child: VideoPlayer(_videoController),
-                              ),
-                              const Icon(Icons.play_circle_fill,
-                                  size: 50, color: Colors.white),
-                            ],
-                          )
-                        : Image.asset(widget.imagePath, fit: BoxFit.cover),
-              ),
-              const SizedBox(height: 8),
-              if (widget.messages != null && widget.messages!.isNotEmpty)
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 500),
-                  child: Text(
-                    widget.messages![_currentMessageIndex],
-                    key: ValueKey<int>(_currentMessageIndex),
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                        fontSize: 14, fontWeight: FontWeight.w500),
-                  ),
-                )
-              else if (widget.caption != null)
-                Text(
-                  widget.caption!,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                      fontSize: 14, fontWeight: FontWeight.w500),
-                ),
-            ],
+          Container(
+            height: 120, // Adjusted size for smaller cards
+            width: 100, // Adjusted size for smaller cards
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: widget.videoPath.isNotEmpty
+                  ? Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        AspectRatio(
+                          aspectRatio: _videoController.value.isInitialized
+                              ? _videoController.value.aspectRatio
+                              : 16 / 9,
+                          child: VideoPlayer(_videoController),
+                        ),
+                        const Icon(
+                          Icons.play_circle_fill,
+                          color: Colors.white,
+                          size: 40,
+                        ),
+                      ],
+                    )
+                  : Image.asset(
+                      widget.imagePath,
+                      fit: BoxFit.cover,
+                    ),
+            ),
           ),
-          if (widget.images != null && widget.images!.length > 1)
-            const Padding(
-              padding: EdgeInsets.only(bottom: 16.0),
-              child: Text(
-                'Swipe to see more',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontStyle: FontStyle.italic,
-                  color: Colors.grey,
-                ),
+          const SizedBox(height: 8),
+          if (widget.caption != null)
+            Text(
+              widget.caption!,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
               ),
+              textAlign: TextAlign.center,
             ),
         ],
       ),
@@ -157,127 +115,87 @@ class _PolaroidCardState extends State<PolaroidCard> {
   }
 }
 
-class VideoScreen extends StatelessWidget {
+class FullScreenVideo extends StatefulWidget {
   final String videoPath;
 
-  const VideoScreen({Key? key, required this.videoPath}) : super(key: key);
+  const FullScreenVideo({Key? key, required this.videoPath}) : super(key: key);
+
+  @override
+  _FullScreenVideoState createState() => _FullScreenVideoState();
+}
+
+class _FullScreenVideoState extends State<FullScreenVideo> {
+  late VideoPlayerController _videoController;
+
+  @override
+  void initState() {
+    super.initState();
+    _videoController = VideoPlayerController.asset(widget.videoPath)
+      ..initialize().then((_) {
+        setState(() {});
+        _videoController.play();
+      });
+  }
+
+  @override
+  void dispose() {
+    _videoController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final VideoPlayerController controller =
-        VideoPlayerController.asset(videoPath);
-
     return Scaffold(
-      appBar: AppBar(title: const Text('Video View')),
-      body: Center(
-        child: FutureBuilder(
-          future: controller.initialize(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.done) {
-              return AspectRatio(
-                aspectRatio: controller.value.aspectRatio,
-                child: VideoPlayer(controller),
-              );
-            } else {
-              return const CircularProgressIndicator();
-            }
-          },
-        ),
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        title: const Text("Playing Video"),
       ),
+      body: Center(
+        child: _videoController.value.isInitialized
+            ? AspectRatio(
+                aspectRatio: _videoController.value.aspectRatio,
+                child: VideoPlayer(_videoController),
+              )
+            : const CircularProgressIndicator(),
+      ),
+      backgroundColor: Colors.black,
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          if (controller.value.isPlaying) {
-            controller.pause();
-          } else {
-            controller.play();
-          }
+          setState(() {
+            if (_videoController.value.isPlaying) {
+              _videoController.pause();
+            } else {
+              _videoController.play();
+            }
+          });
         },
         child: Icon(
-          controller.value.isPlaying ? Icons.pause : Icons.play_arrow,
+          _videoController.value.isPlaying ? Icons.pause : Icons.play_arrow,
         ),
       ),
     );
   }
 }
 
-class VideoPlayerWidget extends StatefulWidget {
-  final String videoPath;
+class FullScreenImage extends StatelessWidget {
+  final String imagePath;
 
-  const VideoPlayerWidget({Key? key, required this.videoPath})
-      : super(key: key);
-
-  @override
-  _VideoPlayerWidgetState createState() => _VideoPlayerWidgetState();
-}
-
-class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
-  late VideoPlayerController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = VideoPlayerController.asset(widget.videoPath)
-      ..initialize().then((_) {
-        setState(() {});
-        _controller.play();
-      });
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return _controller.value.isInitialized
-        ? AspectRatio(
-            aspectRatio: _controller.value.aspectRatio,
-            child: VideoPlayer(_controller),
-          )
-        : const Center(child: CircularProgressIndicator());
-  }
-}
-
-class ImageSlideshowScreen extends StatelessWidget {
-  final List<String> images;
-
-  const ImageSlideshowScreen({Key? key, required this.images})
-      : super(key: key);
+  const FullScreenImage({Key? key, required this.imagePath}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Image Slideshow')),
-      body: PageView.builder(
-        itemCount: images.length,
-        itemBuilder: (context, index) {
-          final isVideo = images[index].endsWith('.mp4');
-          return Column(
-            children: [
-              Expanded(
-                child: isVideo
-                    ? VideoPlayerWidget(videoPath: images[index])
-                    : Image.asset(
-                        images[index],
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                      ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Swipe left or right to navigate',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontStyle: FontStyle.italic,
-                  color: Colors.grey,
-                ),
-              ),
-            ],
-          );
-        },
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        title: const Text("Viewing Image"),
       ),
+      body: Center(
+        child: Image.asset(
+          imagePath,
+          fit: BoxFit.contain,
+        ),
+      ),
+      backgroundColor: Colors.black,
     );
   }
 }
