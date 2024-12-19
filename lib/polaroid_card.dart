@@ -1,21 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
-import 'full_screen_video.dart';
-import 'full_screen_image.dart';
-import 'full_screen_image_slideshow.dart';
 
 class PolaroidCard extends StatefulWidget {
   final String imagePath;
   final String videoPath;
   final String? caption;
-  final List<String>? images; // List of images for slideshow
 
   const PolaroidCard({
     Key? key,
     required this.imagePath,
     required this.videoPath,
     this.caption,
-    this.images,
   }) : super(key: key);
 
   @override
@@ -23,16 +18,14 @@ class PolaroidCard extends StatefulWidget {
 }
 
 class _PolaroidCardState extends State<PolaroidCard> {
-  late PageController _pageController;
-  late VideoPlayerController _videoController;
-  int _currentPageIndex = 0;
+  VideoPlayerController? _videoController;
   bool _isVideoInitialized = false;
 
   @override
   void initState() {
     super.initState();
-    _pageController = PageController();
 
+    // Initialize video if provided
     if (widget.videoPath.isNotEmpty) {
       _videoController = VideoPlayerController.asset(widget.videoPath)
         ..initialize().then((_) {
@@ -43,140 +36,136 @@ class _PolaroidCardState extends State<PolaroidCard> {
           debugPrint('Video player initialization error: $e');
         });
     }
-
-    // Start slideshow if images are present
-    if (widget.images != null && widget.images!.isNotEmpty) {
-      Future.delayed(const Duration(seconds: 2), _autoSlideImages);
-    }
-  }
-
-  void _autoSlideImages() {
-    if (widget.images != null && widget.images!.isNotEmpty) {
-      setState(() {
-        _currentPageIndex = (_currentPageIndex + 1) % widget.images!.length;
-        _pageController.animateToPage(
-          _currentPageIndex,
-          duration: const Duration(milliseconds: 500),
-          curve: Curves.easeInOut,
-        );
-      });
-      Future.delayed(const Duration(seconds: 2), _autoSlideImages);
-    }
   }
 
   @override
   void dispose() {
-    if (widget.videoPath.isNotEmpty) {
-      _videoController.dispose();
-    }
-    _pageController.dispose();
+    _videoController?.dispose();
     super.dispose();
-  }
-
-  void _openFullScreen(BuildContext context) {
-    if (widget.videoPath.isNotEmpty) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => FullScreenVideo(videoPath: widget.videoPath),
-        ),
-      );
-    } else if (widget.images != null && widget.images!.isNotEmpty) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) =>
-              FullScreenImageSlideshow(images: widget.images!),
-        ),
-      );
-    } else if (widget.imagePath.isNotEmpty) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => FullScreenImage(imagePath: widget.imagePath),
-        ),
-      );
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => _openFullScreen(context),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            height: 120,
-            width: 100,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: widget.images != null && widget.images!.isNotEmpty
-                  ? PageView.builder(
-                      controller: _pageController,
-                      itemCount: widget.images!.length,
-                      itemBuilder: (context, index) {
-                        final imagePath = widget.images![index];
-                        final isVideo = imagePath.endsWith('.mp4');
-                        if (isVideo && _isVideoInitialized) {
-                          return Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              AspectRatio(
-                                aspectRatio: _videoController.value.aspectRatio,
-                                child: VideoPlayer(_videoController),
-                              ),
-                              const Icon(
-                                Icons.play_circle_fill,
-                                color: Colors.white,
-                                size: 40,
-                              ),
-                            ],
-                          );
-                        }
-                        return Image.asset(
-                          imagePath,
-                          fit: BoxFit.cover,
-                        );
-                      },
-                    )
-                  : widget.videoPath.isNotEmpty
-                      ? Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            AspectRatio(
-                              aspectRatio: _isVideoInitialized
-                                  ? _videoController.value.aspectRatio
-                                  : 16 / 9,
-                              child: _isVideoInitialized
-                                  ? VideoPlayer(_videoController)
-                                  : const CircularProgressIndicator(),
-                            ),
-                            const Icon(
-                              Icons.play_circle_fill,
-                              color: Colors.white,
-                              size: 40,
-                            ),
-                          ],
-                        )
-                      : Image.asset(
-                          widget.imagePath,
-                          fit: BoxFit.cover,
-                        ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        AspectRatio(
+          aspectRatio: 3 / 4, // Fixed aspect ratio for Polaroid cards
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: widget.videoPath.isNotEmpty && _isVideoInitialized
+                ? Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      VideoPlayer(_videoController!),
+                      IconButton(
+                        icon: const Icon(Icons.play_circle_fill,
+                            size: 40, color: Colors.white),
+                        onPressed: () => _videoController?.play(),
+                      ),
+                    ],
+                  )
+                : Image.asset(
+                    widget.imagePath,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      color: Colors.grey[300],
+                      child: const Icon(Icons.broken_image,
+                          size: 40, color: Colors.grey),
+                    ),
+                  ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        if (widget.caption != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4.0),
+            child: Text(
+              widget.caption!,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
             ),
           ),
-          const SizedBox(height: 8),
-          if (widget.caption != null)
-            Text(
-              widget.caption!,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.center,
-            ),
-        ],
+      ],
+    );
+  }
+}
+
+class PolaroidGridScreen extends StatelessWidget {
+  final List<Map<String, dynamic>> polaroidData = [
+    {
+      'image': 'assets/images/january.png',
+      'video': 'assets/videos/january.mp4',
+      'caption': 'January'
+    },
+    {
+      'image': 'assets/images/february.png',
+      'video': 'assets/videos/february.mp4',
+      'caption': 'February'
+    },
+    {'image': 'assets/images/march.png', 'video': '', 'caption': 'March'},
+    {
+      'image': 'assets/images/april.png',
+      'video': 'assets/videos/april.mp4',
+      'caption': 'April'
+    },
+    {
+      'image': 'assets/images/may.png',
+      'video': 'assets/videos/may.mp4',
+      'caption': 'May'
+    },
+    ...List.generate(7, (index) {
+      final monthNames = [
+        'June',
+        'July',
+        'August',
+        'September',
+        'October',
+        'November',
+        'December'
+      ];
+      return {
+        'image': 'assets/images/placeholder.jpg',
+        'video': '',
+        'caption': monthNames[index]
+      };
+    }),
+  ];
+
+  PolaroidGridScreen({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'Our Year in Polaroids',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        elevation: 0,
+      ),
+      body: GridView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3, // 3 items per row
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+          childAspectRatio: 0.85, // Adjust for caption spacing
+        ),
+        itemCount: polaroidData.length,
+        itemBuilder: (context, index) {
+          final item = polaroidData[index];
+          return PolaroidCard(
+            imagePath: item['image'] ?? '',
+            videoPath: item['video'] ?? '',
+            caption: item['caption'] ?? '',
+          );
+        },
       ),
     );
   }
